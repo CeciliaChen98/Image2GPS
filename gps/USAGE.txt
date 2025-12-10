@@ -1,0 +1,15 @@
+Usage:
+  python gpsExtractor.py ../raw_images -o ../dataset --train 0.8 --val 0.1 --test 0.1 --seed 42
+
+  This will create:
+  ../dataset/
+    train/
+      metadata.csv
+      image1.jpg
+      ...
+    validation/
+      metadata.csv
+      ...
+    test/
+      metadata.csv
+      ...
