@@ -1,0 +1,36 @@
+================================================================================
+MILESTONE COMPARISON: ResNet-50 with/without Grayscale (50 epochs)
+================================================================================
+
+Results at each milestone (best model up to that epoch evaluated on test set)
+
+--------------------------------------------------------------------------------
+Epoch      Config               Best Val RMSE   Test RMSE       Test MAE       
+--------------------------------------------------------------------------------
+10         no_grayscale         38.62m         35.33m         29.81m
+10         with_grayscale       39.66m         36.38m         30.60m
+
+20         no_grayscale         30.94m         29.14m         25.27m
+20         with_grayscale       30.60m         26.27m         23.25m
+
+30         no_grayscale         28.40m         24.12m         20.56m
+30         with_grayscale       26.72m         23.67m         20.91m
+
+40         no_grayscale         27.20m         22.64m         19.37m
+40         with_grayscale       25.80m         23.30m         20.25m
+
+50         no_grayscale         26.92m         22.61m         19.17m
+50         with_grayscale       25.52m         21.92m         19.28m
+
+================================================================================
+
+SUMMARY (Test RMSE at each milestone):
+
+Epoch      No Grayscale         With Grayscale       Difference     
+-----------------------------------------------------------------
+10         35.33m              36.38m              +1.05m
+20         29.14m              26.27m              -2.87m
+30         24.12m              23.67m              -0.45m
+40         22.64m              23.30m              +0.66m
+50         22.61m              21.92m              -0.69m
+================================================================================

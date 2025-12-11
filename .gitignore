@@ -3,3 +3,5 @@ baseline_model/checkpoints/
 baseline_model/__pycache__/
 improved_model/checkpoints/
 improved_model/__pycache__/
+performance_test/milestone_comparison/resnet50_no_grayscale/
+performance_test/milestone_comparison/resnet50_with_grayscale/

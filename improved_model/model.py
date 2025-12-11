@@ -16,10 +16,10 @@ import torchvision.models as models
 # Hardcoded normalization parameters from training data
 # UPDATE THESE after training with your dataset!
 NORM_PARAMS = {
-    'lat_mean': 39.952478,
-    'lat_std': 0.001349,
-    'lon_mean': -75.193367,
-    'lon_std': 0.002270,
+    "lat_mean": 39.95170300059418,
+    "lat_std": 0.0006492592147412374,
+    "lon_mean": -75.19154888963162,
+    "lon_std": 0.0006311150924374861
 }
 
 
