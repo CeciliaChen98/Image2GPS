@@ -1,0 +1,111 @@
+{
+  "timestamp": "2025-12-11 00:45:05",
+  "config": {
+    "baseline_epochs": 15,
+    "improved_epochs": 15,
+    "batch_size": 32
+  },
+  "preprocessing_tests": {
+    "baseline": true,
+    "improved": true
+  },
+  "data_loading": true,
+  "experiments": [
+    {
+      "name": "baseline_scratch",
+      "model": "ResNet-18",
+      "pretrained": false,
+      "epochs": 15,
+      "success": true,
+      "metrics": {
+        "best_val_rmse": 72.35,
+        "test_rmse": 69.76,
+        "test_baseline_rmse": 82.36,
+        "final_train_loss": null
+      }
+    },
+    {
+      "name": "baseline_pretrained",
+      "model": "ResNet-18",
+      "pretrained": true,
+      "epochs": 15,
+      "success": true,
+      "metrics": {
+        "best_val_rmse": 52.92,
+        "test_rmse": 48.52,
+        "test_baseline_rmse": 82.36,
+        "final_train_loss": null
+      }
+    },
+    {
+      "name": "improved_resnet18_grayscale",
+      "model": "resnet18",
+      "pretrained": true,
+      "augmentation": "grayscale_only",
+      "epochs": 15,
+      "success": true,
+      "metrics": {
+        "best_val_rmse": 38.55,
+        "test_rmse": null,
+        "test_baseline_rmse": null,
+        "final_train_loss": null
+      }
+    },
+    {
+      "name": "improved_resnet50_grayscale",
+      "model": "resnet50",
+      "pretrained": true,
+      "augmentation": "grayscale_only",
+      "epochs": 15,
+      "success": true,
+      "metrics": {
+        "best_val_rmse": 35.84,
+        "test_rmse": null,
+        "test_baseline_rmse": null,
+        "final_train_loss": null
+      }
+    },
+    {
+      "name": "improved_resnet50_no_aug",
+      "model": "resnet50",
+      "pretrained": true,
+      "augmentation": "no_aug",
+      "epochs": 15,
+      "success": true,
+      "metrics": {
+        "best_val_rmse": 36.15,
+        "test_rmse": null,
+        "test_baseline_rmse": null,
+        "final_train_loss": null
+      }
+    },
+    {
+      "name": "improved_resnet50_grayscale",
+      "model": "resnet50",
+      "pretrained": true,
+      "augmentation": "grayscale",
+      "epochs": 15,
+      "success": true,
+      "metrics": {
+        "best_val_rmse": 37.77,
+        "test_rmse": null,
+        "test_baseline_rmse": null,
+        "final_train_loss": null
+      }
+    },
+    {
+      "name": "improved_resnet50_full_aug",
+      "model": "resnet50",
+      "pretrained": true,
+      "augmentation": "full_aug",
+      "epochs": 15,
+      "success": true,
+      "metrics": {
+        "best_val_rmse": 35.6,
+        "test_rmse": null,
+        "test_baseline_rmse": null,
+        "final_train_loss": null
+      }
+    }
+  ]
+}

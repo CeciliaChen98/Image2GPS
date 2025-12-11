@@ -89,33 +89,40 @@ def calculate_metrics(predictions, actuals, norm_params):
     }
 
 
-def create_dataloaders(dataset_name, batch_size=32, val_split=0.2, num_workers=4):
-    """Create training and validation dataloaders."""
+def create_dataloaders(dataset_name, batch_size=32, num_workers=4,
+                       use_grayscale=True, use_blur=True, use_erasing=True):
+    """Create training, validation, and test dataloaders.
+
+    Args:
+        dataset_name: HuggingFace dataset name
+        batch_size: Batch size for dataloaders
+        num_workers: Number of data loading workers
+        use_grayscale: Enable RandomGrayscale augmentation
+        use_blur: Enable GaussianBlur augmentation
+        use_erasing: Enable RandomErasing augmentation
+    """
     print(f"Loading dataset: {dataset_name}")
-    dataset = load_dataset(dataset_name, split="train")
-    print(f"Dataset loaded with {len(dataset)} samples")
 
-    # Split dataset
-    total_size = len(dataset)
-    val_size = int(total_size * val_split)
-    train_size = total_size - val_size
+    # Print augmentation config
+    print(f"Augmentation config: grayscale={use_grayscale}, blur={use_blur}, erasing={use_erasing}")
 
-    indices = list(range(total_size))
-    np.random.seed(42)
-    np.random.shuffle(indices)
+    # Load train, validation, and test splits separately
+    dataset_train = load_dataset(dataset_name, split="train")
+    dataset_val = load_dataset(dataset_name, split="validation")
+    dataset_test = load_dataset(dataset_name, split="test")
 
-    train_indices = indices[:train_size]
-    val_indices = indices[train_size:]
+    print(f"Train samples: {len(dataset_train)}")
+    print(f"Validation samples: {len(dataset_val)}")
+    print(f"Test samples: {len(dataset_test)}")
 
-    train_subset = dataset.select(train_indices)
-    val_subset = dataset.select(val_indices)
-
-    print(f"Training samples: {len(train_subset)}, Validation samples: {len(val_subset)}")
-
-    # Create datasets
+    # Create datasets with configurable augmentations
     train_dataset = GPSImageDataset(
-        train_subset,
-        transform=get_train_transform(),
+        dataset_train,
+        transform=get_train_transform(
+            use_grayscale=use_grayscale,
+            use_blur=use_blur,
+            use_erasing=use_erasing
+        ),
         is_huggingface=True
     )
 
@@ -123,7 +130,17 @@ def create_dataloaders(dataset_name, batch_size=32, val_split=0.2, num_workers=4
     print(f"Normalization params: {norm_params}")
 
     val_dataset = GPSImageDataset(
-        val_subset,
+        dataset_val,
+        transform=get_val_transform(),
+        lat_mean=norm_params['lat_mean'],
+        lat_std=norm_params['lat_std'],
+        lon_mean=norm_params['lon_mean'],
+        lon_std=norm_params['lon_std'],
+        is_huggingface=True
+    )
+
+    test_dataset = GPSImageDataset(
+        dataset_test,
         transform=get_val_transform(),
         lat_mean=norm_params['lat_mean'],
         lat_std=norm_params['lat_std'],
@@ -150,7 +167,15 @@ def create_dataloaders(dataset_name, batch_size=32, val_split=0.2, num_workers=4
         pin_memory=True
     )
 
-    return train_loader, val_loader, norm_params
+    test_loader = DataLoader(
+        test_dataset,
+        batch_size=batch_size,
+        shuffle=False,
+        num_workers=num_workers,
+        pin_memory=True
+    )
+
+    return train_loader, val_loader, test_loader, norm_params
 
 
 def get_lr_scheduler(optimizer, num_epochs, warmup_epochs=5, min_lr=1e-6):
@@ -246,11 +271,13 @@ def train(args):
         json.dump(vars(args), f, indent=2)
 
     # Create dataloaders
-    train_loader, val_loader, norm_params = create_dataloaders(
+    train_loader, val_loader, test_loader, norm_params = create_dataloaders(
         args.dataset,
         batch_size=args.batch_size,
-        val_split=args.val_split,
-        num_workers=args.num_workers
+        num_workers=args.num_workers,
+        use_grayscale=args.use_grayscale,
+        use_blur=args.use_blur,
+        use_erasing=args.use_erasing
     )
 
     # Save normalization parameters
@@ -359,6 +386,33 @@ def train(args):
     print(f"Model saved to: {output_dir}")
     print("=" * 70)
 
+    # Load best model for test evaluation
+    print("\n" + "=" * 70)
+    print("Evaluating on Test Set...")
+    print("=" * 70)
+    best_checkpoint = torch.load(os.path.join(output_dir, 'best_model.pth'), weights_only=False)
+    model.load_state_dict(best_checkpoint['model_state_dict'])
+
+    test_metrics, test_baseline_metrics = validate(model, test_loader, norm_params, device)
+    print(f"Test RMSE: {test_metrics['rmse']:.2f}m | Baseline: {test_baseline_metrics['rmse']:.2f}m")
+    print(f"Test MAE: {test_metrics['mae']:.2f}m | Median: {test_metrics['median']:.2f}m")
+    print(f"Test Min: {test_metrics['min']:.2f}m | Max: {test_metrics['max']:.2f}m")
+    print(f"Improvement over baseline: {test_baseline_metrics['rmse'] - test_metrics['rmse']:.2f}m ({(1 - test_metrics['rmse']/test_baseline_metrics['rmse'])*100:.1f}%)")
+    print("=" * 70)
+
+    # Save test results
+    test_results = {
+        'test_rmse': test_metrics['rmse'],
+        'test_mae': test_metrics['mae'],
+        'test_median': test_metrics['median'],
+        'test_min': test_metrics['min'],
+        'test_max': test_metrics['max'],
+        'test_std': test_metrics['std'],
+        'baseline_rmse': test_baseline_metrics['rmse']
+    }
+    with open(os.path.join(output_dir, 'test_results.json'), 'w') as f:
+        json.dump(test_results, f, indent=2)
+
     # Print instructions for submission
     print("\n" + "=" * 70)
     print("SUBMISSION INSTRUCTIONS:")
@@ -376,10 +430,8 @@ def main():
     parser = argparse.ArgumentParser(description='Train Improved Image2GPS Model')
 
     # Dataset
-    parser.add_argument('--dataset', type=str, default='CoconutYezi/released_img',
-                        help='HuggingFace dataset name')
-    parser.add_argument('--val_split', type=float, default=0.2,
-                        help='Validation split ratio')
+    parser.add_argument('--dataset', type=str, default='rantyw/image2gps',
+                        help='HuggingFace dataset name (e.g., org/dataset)')
 
     # Model
     parser.add_argument('--backbone', type=str, default='resnet50',
@@ -404,6 +456,20 @@ def main():
     parser.add_argument('--use_amp', action='store_true', default=True,
                         help='Use automatic mixed precision')
     parser.add_argument('--no_amp', action='store_false', dest='use_amp')
+
+    # Augmentation options (for ablation studies)
+    parser.add_argument('--use_grayscale', action='store_true', default=True,
+                        help='Enable RandomGrayscale augmentation (simulates weather)')
+    parser.add_argument('--no_grayscale', action='store_false', dest='use_grayscale',
+                        help='Disable RandomGrayscale augmentation')
+    parser.add_argument('--use_blur', action='store_true', default=True,
+                        help='Enable GaussianBlur augmentation (simulates focus)')
+    parser.add_argument('--no_blur', action='store_false', dest='use_blur',
+                        help='Disable GaussianBlur augmentation')
+    parser.add_argument('--use_erasing', action='store_true', default=True,
+                        help='Enable RandomErasing augmentation (simulates occlusions)')
+    parser.add_argument('--no_erasing', action='store_false', dest='use_erasing',
+                        help='Disable RandomErasing augmentation')
 
     # System
     parser.add_argument('--num_workers', type=int, default=4)

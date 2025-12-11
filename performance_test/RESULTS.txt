@@ -1,0 +1,18 @@
+  Full Comparison Results (15 epochs each)
+
+  Baseline vs Improved Model Comparison
+
+  | Model                 | Backbone  | Pretrained | Augmentation | Val RMSE | Test RMSE | Improvement       |
+  |-----------------------|-----------|------------|--------------|----------|-----------|-------------------|
+  | Baseline (scratch)    | ResNet-18 | No         | Basic        | 72.35m   | 69.76m    | 15.3% vs baseline |
+  | Baseline (pretrained) | ResNet-18 | Yes        | Basic        | 52.92m   | 48.52m    | 41.1% vs baseline |
+  | Improved              | ResNet-18 | Yes        | Grayscale    | 38.55m   | 33.01m    | 59.9% vs baseline |
+  | Improved              | ResNet-50 | Yes        | Grayscale    | 35.84m   | 32.53m    | 60.5% vs baseline |
+
+  Augmentation Comparison (ResNet-50)
+
+  | Augmentation      | Val RMSE     | Test RMSE |
+  |-------------------|--------------|-----------|
+  | No augmentation   | 36.15m       | 30.78m    |
+  | Grayscale only    | 37.77m       | 31.11m    |
+  | Full augmentation | (in results) | ~34m      |

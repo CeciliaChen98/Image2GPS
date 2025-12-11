@@ -20,16 +20,25 @@ from PIL import Image
 # Transforms
 # ============================================================================
 
-def get_train_transform():
+def get_train_transform(use_grayscale=True, use_blur=True, use_erasing=True):
     """
-    Get training transform with data augmentation.
+    Get training transform with configurable data augmentation.
 
     Augmentations help the model generalize better to:
     - Different lighting conditions
     - Different camera angles
     - Weather variations
+
+    Args:
+        use_grayscale: Enable RandomGrayscale (simulates weather/lighting)
+        use_blur: Enable GaussianBlur (simulates camera focus variation)
+        use_erasing: Enable RandomErasing (simulates occlusions)
+
+    Returns:
+        Composed transform pipeline
     """
-    return transforms.Compose([
+    transform_list = [
+        # Base augmentations (always enabled)
         transforms.RandomResizedCrop(224, scale=(0.8, 1.0)),
         transforms.RandomHorizontalFlip(p=0.5),
         transforms.RandomRotation(degrees=15),
@@ -39,12 +48,26 @@ def get_train_transform():
             saturation=0.3,
             hue=0.1
         ),
-        transforms.RandomGrayscale(p=0.1),  # Simulate different weather
-        transforms.GaussianBlur(kernel_size=3, sigma=(0.1, 2.0)),
+    ]
+
+    # Optional augmentations
+    if use_grayscale:
+        transform_list.append(transforms.RandomGrayscale(p=0.1))  # Simulate different weather
+
+    if use_blur:
+        transform_list.append(transforms.GaussianBlur(kernel_size=3, sigma=(0.1, 2.0)))  # Camera focus variation
+
+    # ToTensor and Normalize (always required)
+    transform_list.extend([
         transforms.ToTensor(),
         transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
-        transforms.RandomErasing(p=0.1, scale=(0.02, 0.1)),  # Simulate occlusions
     ])
+
+    # RandomErasing must come after ToTensor
+    if use_erasing:
+        transform_list.append(transforms.RandomErasing(p=0.1, scale=(0.02, 0.1)))  # Simulate occlusions
+
+    return transforms.Compose(transform_list)
 
 
 def get_val_transform():

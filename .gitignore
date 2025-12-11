@@ -1,3 +1,5 @@
 # Ignore checkpoints folder
 baseline_model/checkpoints/
+baseline_model/__pycache__/
 improved_model/checkpoints/
+improved_model/__pycache__/

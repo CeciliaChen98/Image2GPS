@@ -74,17 +74,23 @@ class GPSImageDataset(Dataset):
         }
 
 
-def create_dataloaders(dataset_name, batch_size=32, val_split=0.2, num_workers=0):
+def create_dataloaders(dataset_name, batch_size=32, num_workers=0):
     """
-    Create training and validation dataloaders from a HuggingFace dataset.
+    Create training, validation, and test dataloaders from a HuggingFace dataset.
 
-    Since the dataset only has train split without test labels, we split
-    the training data into train and validation sets.
+    Loads separate train, validation, and test splits from the dataset.
     """
     print(f"Loading dataset: {dataset_name}")
-    dataset = load_dataset(dataset_name, split="train")
-    print(f"Dataset loaded with {len(dataset)} samples")
-    print(f"Features: {dataset.features}")
+
+    # Load train, validation, and test splits separately
+    dataset_train = load_dataset(dataset_name, split="train")
+    dataset_val = load_dataset(dataset_name, split="validation")
+    dataset_test = load_dataset(dataset_name, split="test")
+
+    print(f"Train samples: {len(dataset_train)}")
+    print(f"Validation samples: {len(dataset_val)}")
+    print(f"Test samples: {len(dataset_test)}")
+    print(f"Features: {dataset_train.features}")
 
     # Define transforms
     train_transform = transforms.Compose([
@@ -102,27 +108,8 @@ def create_dataloaders(dataset_name, batch_size=32, val_split=0.2, num_workers=0
         transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
     ])
 
-    # Split the dataset into train and validation
-    total_size = len(dataset)
-    val_size = int(total_size * val_split)
-    train_size = total_size - val_size
-
-    # Create indices for splitting
-    indices = list(range(total_size))
-    np.random.seed(42)  # For reproducibility
-    np.random.shuffle(indices)
-
-    train_indices = indices[:train_size]
-    val_indices = indices[train_size:]
-
-    # Create subset datasets
-    train_subset = dataset.select(train_indices)
-    val_subset = dataset.select(val_indices)
-
-    print(f"Training samples: {len(train_subset)}, Validation samples: {len(val_subset)}")
-
     # Create the training dataset first to get normalization parameters
-    train_dataset = GPSImageDataset(hf_dataset=train_subset, transform=train_transform)
+    train_dataset = GPSImageDataset(hf_dataset=dataset_train, transform=train_transform)
 
     # Get normalization parameters from training set
     norm_params = train_dataset.get_normalization_params()
@@ -133,7 +120,17 @@ def create_dataloaders(dataset_name, batch_size=32, val_split=0.2, num_workers=0
 
     # Create validation dataset using training normalization parameters
     val_dataset = GPSImageDataset(
-        hf_dataset=val_subset,
+        hf_dataset=dataset_val,
+        transform=val_transform,
+        lat_mean=norm_params['lat_mean'],
+        lat_std=norm_params['lat_std'],
+        lon_mean=norm_params['lon_mean'],
+        lon_std=norm_params['lon_std']
+    )
+
+    # Create test dataset using training normalization parameters
+    test_dataset = GPSImageDataset(
+        hf_dataset=dataset_test,
         transform=val_transform,
         lat_mean=norm_params['lat_mean'],
         lat_std=norm_params['lat_std'],
@@ -156,11 +153,18 @@ def create_dataloaders(dataset_name, batch_size=32, val_split=0.2, num_workers=0
         num_workers=num_workers,
         pin_memory=True if torch.cuda.is_available() else False
     )
+    test_dataloader = DataLoader(
+        test_dataset,
+        batch_size=batch_size,
+        shuffle=False,
+        num_workers=num_workers,
+        pin_memory=True if torch.cuda.is_available() else False
+    )
 
-    return train_dataloader, val_dataloader, norm_params
+    return train_dataloader, val_dataloader, test_dataloader, norm_params
 
 
-def create_model(pretrained=True):
+def create_model(pretrained=False):
     """
     Create a ResNet-18 model modified for GPS coordinate regression.
 
@@ -170,7 +174,7 @@ def create_model(pretrained=True):
     if pretrained:
         resnet = models.resnet18(weights=models.ResNet18_Weights.IMAGENET1K_V1)
     else:
-        resnet = models.resnet18(weights=None)
+        resnet = models.resnet18(pretrained=False)
 
     # Modify the last fully connected layer to output 2 values
     num_features = resnet.fc.in_features
@@ -178,6 +182,9 @@ def create_model(pretrained=True):
 
     # Enable gradients for all parameters (full fine-tuning)
     for param in resnet.parameters():
+        param.requires_grad = True
+
+    for param in resnet.fc.parameters():
         param.requires_grad = True
 
     return resnet
@@ -271,10 +278,9 @@ def train(args):
     print(f"Using device: {device}")
 
     # Create dataloaders
-    train_dataloader, val_dataloader, norm_params = create_dataloaders(
+    train_dataloader, val_dataloader, test_dataloader, norm_params = create_dataloaders(
         args.dataset,
         batch_size=args.batch_size,
-        val_split=args.val_split,
         num_workers=args.num_workers
     )
 
@@ -333,6 +339,19 @@ def train(args):
     print(f"Best Validation RMSE: {best_val_rmse:.2f}m")
     print("="*60)
 
+    # Load best model for test evaluation
+    print("\n" + "="*60)
+    print("Evaluating on Test Set...")
+    print("="*60)
+    best_checkpoint = torch.load(os.path.join(args.output_dir, 'best_model.pth'), weights_only=False)
+    model.load_state_dict(best_checkpoint['model_state_dict'])
+
+    test_rmse, test_baseline_rmse = validate(model, test_dataloader, norm_params, device)
+    print(f"Test RMSE: {test_rmse:.2f}m")
+    print(f"Test Baseline RMSE: {test_baseline_rmse:.2f}m")
+    print(f"Improvement over baseline: {test_baseline_rmse - test_rmse:.2f}m ({(1 - test_rmse/test_baseline_rmse)*100:.1f}%)")
+    print("="*60)
+
     # Save final model
     final_path = os.path.join(args.output_dir, 'final_model.pth')
     torch.save({
@@ -356,16 +375,14 @@ def main():
     parser = argparse.ArgumentParser(description='Train Image2GPS model')
 
     # Dataset arguments
-    parser.add_argument('--dataset', type=str, default='CoconutYezi/released_img',
-                        help='HuggingFace dataset name')
-    parser.add_argument('--val_split', type=float, default=0.2,
-                        help='Validation split ratio (default: 0.2)')
+    parser.add_argument('--dataset', type=str, default='rantyw/image2gps',
+                        help='HuggingFace dataset name (e.g., org/dataset)')
 
     # Training arguments
     parser.add_argument('--batch_size', type=int, default=32,
                         help='Batch size for training (default: 32)')
-    parser.add_argument('--num_epochs', type=int, default=15,
-                        help='Number of training epochs (default: 15)')
+    parser.add_argument('--num_epochs', type=int, default=5,
+                        help='Number of training epochs (default: 5)')
     parser.add_argument('--learning_rate', type=float, default=0.001,
                         help='Learning rate (default: 0.001)')
     parser.add_argument('--scheduler_step', type=int, default=5,
@@ -374,8 +391,8 @@ def main():
                         help='Gamma for learning rate scheduler (default: 0.1)')
 
     # Model arguments
-    parser.add_argument('--pretrained', action='store_true', default=True,
-                        help='Use pretrained ResNet weights (default: True)')
+    parser.add_argument('--pretrained', action='store_true', default=False,
+                        help='Use pretrained ResNet weights (default: False)')
     parser.add_argument('--no_pretrained', action='store_false', dest='pretrained',
                         help='Do not use pretrained ResNet weights')
 

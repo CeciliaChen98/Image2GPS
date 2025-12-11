@@ -1,0 +1,36 @@
+ Using device: cuda
+
+  ======================================================================
+  ABLATION STUDY - TEST SET EVALUATION
+  ======================================================================
+
+  Evaluating: base_only (gray=No, blur=No, erase=No)
+    Test RMSE: 31.58m | MAE: 28.01m | Median: 25.59m
+
+  Evaluating: base+grayscale (gray=Yes, blur=No, erase=No)
+    Test RMSE: 31.02m | MAE: 27.25m | Median: 24.80m
+
+  Evaluating: base+blur (gray=No, blur=Yes, erase=No)
+    Test RMSE: 37.94m | MAE: 33.61m | Median: 31.30m
+
+  Evaluating: base+erasing (gray=No, blur=No, erase=Yes)
+    Test RMSE: 33.35m | MAE: 29.79m | Median: 26.96m
+
+  Evaluating: base+gray+blur (gray=Yes, blur=Yes, erase=No)
+    Test RMSE: 33.09m | MAE: 29.65m | Median: 26.65m
+
+  Evaluating: full_augmentation (gray=Yes, blur=Yes, erase=Yes)
+    Test RMSE: 34.19m | MAE: 29.78m | Median: 29.18m
+
+  ======================================================================
+  SUMMARY TABLE
+  ======================================================================
+  Configuration           Test RMSE     Test MAE       Median
+  ----------------------------------------------------------------------
+  base_only                 31.58m                  28.01m      25.59m
+  base+grayscale            31.02m     (-1.8%)      27.25m      24.80m
+  base+blur                 37.94m    (+20.1%)      33.61m      31.30m
+  base+erasing              33.35m     (+5.6%)      29.79m      26.96m
+  base+gray+blur            33.09m     (+4.8%)      29.65m      26.65m
+  full_augmentation         34.19m     (+8.2%)      29.78m      29.18m
+  ======================================================================
