@@ -1,0 +1,39 @@
+Comparison Results: Your Model vs Picarta API
+
+  | Metric | Your Model (IMG2GPS) | Picarta API | Winner     |
+  |--------|----------------------|-------------|------------|
+  | RMSE   | 26.78 m              | 3,730.37 m  | Your Model |
+  | MAE    | 22.47 m              | 2,391.07 m  | Your Model |
+  | Median | 24.66 m              | 1,642.71 m  | Your Model |
+
+  Your model outperforms Picarta by 99.3% on this dataset!
+
+  Per-Sample Breakdown:
+
+  | Sample | Your Model Error | Picarta Error |
+  |--------|------------------|---------------|
+  | 1      | 27.66 m          | 186.15 m      |
+  | 2      | 27.67 m          | 211.17 m      |
+  | 3      | 13.89 m          | 162.40 m      |
+  | 4      | 50.58 m          | 2,820.18 m    |
+  | 5      | 2.57 m           | 465.24 m      |
+  | 6      | 21.66 m          | 213.13 m      |
+  | 7      | 27.87 m          | 2,846.07 m    |
+  | 8      | 6.77 m           | 3,582.01 m    |
+  | 9      | 6.73 m           | 3,565.91 m    |
+  | 10     | 39.28 m          | 9,858.46 m    |
+
+  Analysis
+
+  Why your model wins significantly:
+  1. Domain specialization - Your model was trained specifically on Philadelphia street-level imagery from the same
+  distribution
+  2. Location precision - Picarta is a general-purpose worldwide geolocation API, not optimized for street-level
+  accuracy in a single city
+  3. Training data alignment - Test images come from the same dataset your model was trained on
+
+  Picarta's strengths (not shown here):
+  - Works worldwide on any location
+  - High confidence scores (94% on sample 1)
+  - Provides city/province/country-level identification
+  - No training required
