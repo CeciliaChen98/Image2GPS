@@ -1,5 +1,6 @@
 """
 Image2GPS: ResNet50 Model for GPS coordinate prediction.
+Authors: Cecilia Chen, Ranty Wang, Xun Wang
 
 This model uses:
 - ResNet-50 backbone with pretrained ImageNet weights
@@ -13,7 +14,6 @@ import torchvision.models as models
 
 
 # Normalization parameters from training data
-# UPDATE THESE after training with your dataset!
 NORM_PARAMS = {
     "lat_mean": 39.95170300059418,
     "lat_std": 0.0006492592147412374,

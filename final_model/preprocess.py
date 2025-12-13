@@ -1,5 +1,6 @@
 """
 Image2GPS: Preprocessing module for GPS coordinate prediction.
+authors: Cecilia Chen, Ranty Wang, Xun Wang
 
 This module provides:
 1. prepare_data() - Required by evaluation backend
